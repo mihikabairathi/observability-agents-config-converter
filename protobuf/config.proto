@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package Config;
+
+message Directive {
+   string name = 1;
+   string args = 2;
+   repeated Directive directives = 3;
+   repeated Param params = 4;
+}
+
+message Param {
+   string name = 1;
+   string value = 2;
+}

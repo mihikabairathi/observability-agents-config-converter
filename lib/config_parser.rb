@@ -2,6 +2,7 @@
 
 require 'fluent/config/v1_parser'
 require 'optparse'
+require_relative 'config_pb'
 
 # Accepts a file path and prints out parsed version
 class ConfigParser
@@ -10,7 +11,8 @@ class ConfigParser
     prepare_input_parser
     input_validation
     @file_parse = parse_configuration
-    print_configuration(@file_parse)
+    @proto_obj = proto_configuration(@file_parse)
+    File.write('../json/config.json', Config::Directive.encode_json(@proto_obj))
   end
 
   def prepare_input_parser
@@ -49,22 +51,22 @@ class ConfigParser
     exit(false)
   end
 
-  def print_configuration(ele_obj, depth = 0)
-    # displays name, attributes, elements of each element in config file
-    blank = ' ' * depth
+  def proto_configuration(ele_obj)
+    # stores name, attributes, elements of each element of config with proto
+    ele_dir = Config::Directive.new
     # name
-    puts "#{blank}name : #{ele_obj.name}"
-    # attributes
-    ele_obj.each do |a|
-      puts "#{blank}attr #{a[0]} : #{a[1]}"
+    ele_dir.name = ele_obj.name
+    # arguments
+    ele_dir.args = ele_obj.arg if ele_obj.arg != ''
+    # parameters
+    ele_obj.each do |p|
+      ele_dir.params.push(Config::Param.new(name: p[0], value: p[1]))
     end
-    puts "#{blank}(no attributes)" if ele_obj.empty?
-    # elements
-    ele_obj.elements.each do |e|
-      puts "#{blank}element :"
-      # recursive call to display nested elements
-      print_configuration(e, depth + 4)
+    # directives
+    ele_obj.elements.each do |d|
+      ele_dir.directives.push(proto_configuration(d))
     end
+    ele_dir
   end
 end
 
