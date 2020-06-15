@@ -8,6 +8,7 @@ require_relative 'config_pb'
 class ConfigParser
   def initialize(argv = ARGV)
     @argv = argv
+    @ruby_parse = nil # default - won't parse ruby code in a config file
     prepare_input_parser
     input_validation
     @file_parse = parse_configuration
@@ -18,9 +19,15 @@ class ConfigParser
   def prepare_input_parser
     # builds the parser to accept file path
     @input_parser = OptionParser.new
-    @input_parser.banner = "\nPrint-Config-File Tool\nUsage: #{$PROGRAM_NAME} " \
-      "path/to/file\nOutput: Parsed version of config file"
+    @input_parser.banner = "\nConfig Migration Tool\nUsage: #{$PROGRAM_NAME} " \
+      "path/to/file\nOutput: Parsed version of config file\nArguments:"
+    @input_parser.on('-r', '--ruby', 'Parse Ruby Code') do
+      @ruby_parse = Kernel.binding
+    end
     @input_parser.parse!(@argv)
+  rescue StandardError => e
+    usage(e)
+    exit(false)
   end
 
   def usage(message = nil)
@@ -44,9 +51,9 @@ class ConfigParser
     file_str = File.read(@argv[0])
     file_name = File.basename(@argv[0])
     file_dir = File.dirname(@argv[0])
-    Fluent::Config::V1Parser.parse(file_str, file_name,
-                                   file_dir, Kernel.binding)
+    Fluent::Config::V1Parser.parse(file_str, file_name, file_dir, @ruby_parse)
   rescue StandardError => e
+    puts 'An error occured while parsing.\n'
     usage(e)
     exit(false)
   end
@@ -57,7 +64,7 @@ class ConfigParser
     # name
     ele_dir.name = ele_obj.name
     # arguments
-    ele_dir.args = ele_obj.arg if ele_obj.arg != ''
+    ele_dir.args = ele_obj.arg
     # parameters
     ele_obj.each do |p|
       ele_dir.params.push(Config::Param.new(name: p[0], value: p[1]))
