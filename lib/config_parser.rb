@@ -11,13 +11,13 @@ class ConfigParser
     @ruby_parse = nil # default - won't parse ruby code in a config file
     prepare_input_parser
     input_validation
-    @file_parse = parse_configuration
-    @proto_obj = proto_configuration(@file_parse)
+    @file_parse = parse_config
+    @proto_obj = proto_config(@file_parse)
     File.write('../json/config.json', Config::Directive.encode_json(@proto_obj))
   end
 
+  # builds the parser to accept file path
   def prepare_input_parser
-    # builds the parser to accept file path
     @input_parser = OptionParser.new
     @input_parser.banner = "\nConfig Migration Tool\nUsage: #{$PROGRAM_NAME} " \
       "path/to/file\nOutput: Parsed version of config file\nArguments:"
@@ -30,14 +30,14 @@ class ConfigParser
     exit(false)
   end
 
+  # explains how to run the file
   def usage(message = nil)
-    # explains how to run the file
     puts @input_parser.to_s
     puts "\nError: #{message}" if message
   end
 
+  # parses the arguments, quits program if arguments are invalid
   def input_validation
-    # parses the arguments, quits program if arguments are invalid
     raise 'Must specify path of file' if @argv.empty?
     raise 'Only one argument is needed' if @argv.size > 1
     raise 'Enter a valid file path' unless File.exist?(@argv[0])
@@ -46,8 +46,8 @@ class ConfigParser
     exit(false)
   end
 
-  def parse_configuration
-    # extracts required information and parses the config file
+  # extracts required information and parses the config file
+  def parse_config
     file_str = File.read(@argv[0])
     file_name = File.basename(@argv[0])
     file_dir = File.dirname(@argv[0])
@@ -58,20 +58,16 @@ class ConfigParser
     exit(false)
   end
 
-  def proto_configuration(ele_obj)
-    # stores name, attributes, elements of each element of config with proto
+  # stores name, attributes, elements of each element of config with proto
+  def proto_config(ele_obj)
     ele_dir = Config::Directive.new
-    # name
     ele_dir.name = ele_obj.name
-    # arguments
     ele_dir.args = ele_obj.arg
-    # parameters
-    ele_obj.each do |p|
-      ele_dir.params.push(Config::Param.new(name: p[0], value: p[1]))
+    ele_obj.each do |n, v|
+      ele_dir.params.push(Config::Param.new(name: n, value: v))
     end
-    # directives
     ele_obj.elements.each do |d|
-      ele_dir.directives.push(proto_configuration(d))
+      ele_dir.directives.push(proto_config(d))
     end
     ele_dir
   end
