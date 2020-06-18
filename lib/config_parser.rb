@@ -8,22 +8,20 @@ require_relative 'config_pb'
 class ConfigParser
   def initialize(argv = ARGV)
     @argv = argv
-    @ruby_parse = nil # default - won't parse ruby code in a config file
     prepare_input_parser
     input_validation
     @file_parse = parse_config
     @proto_obj = proto_config(@file_parse)
-    File.write('../json/config.json', Config::Directive.encode_json(@proto_obj))
+    File.write(@argv[1].to_s + '/config.json',
+               Config::Directive.encode_json(@proto_obj))
   end
 
   # builds the parser to accept file path
   def prepare_input_parser
     @input_parser = OptionParser.new
     @input_parser.banner = "\nConfig Migration Tool\nUsage: #{$PROGRAM_NAME} " \
-      "path/to/file\nOutput: Parsed version of config file\nArguments:"
-    @input_parser.on('-r', '--ruby', 'Parse Ruby Code') do
-      @ruby_parse = Kernel.binding
-    end
+      "path/to/config/file path/to/output/directory\nOutput: Parsed version " \
+      'of config file in a json file'
     @input_parser.parse!(@argv)
   rescue StandardError => e
     usage(e)
@@ -38,9 +36,10 @@ class ConfigParser
 
   # parses the arguments, quits program if arguments are invalid
   def input_validation
-    raise 'Must specify path of file' if @argv.empty?
-    raise 'Only one argument is needed' if @argv.size > 1
+    raise 'Must specify path of config file and output directory' if @argv.size < 2
+    raise 'Only two arguments are needed' if @argv.size > 2
     raise 'Enter a valid file path' unless File.exist?(@argv[0])
+    raise 'Enter a valid directory' unless Dir.exist?(@argv[1])
   rescue StandardError => e
     usage(e)
     exit(false)
@@ -51,11 +50,12 @@ class ConfigParser
     file_str = File.read(@argv[0])
     file_name = File.basename(@argv[0])
     file_dir = File.dirname(@argv[0])
-    Fluent::Config::V1Parser.parse(file_str, file_name, file_dir, @ruby_parse)
-  rescue StandardError => e
-    puts 'An error occured while parsing.\n'
-    usage(e)
-    exit(false)
+    eval_context = Kernel.binding
+    # overriding function so embedded ruby is not parsed
+    def eval_context.instance_eval(code)
+      code
+    end
+    Fluent::Config::V1Parser.parse(file_str, file_name, file_dir, eval_context)
   end
 
   # stores name, attributes, elements of each element of config with proto
@@ -72,5 +72,3 @@ class ConfigParser
     ele_dir
   end
 end
-
-ConfigParser.new
