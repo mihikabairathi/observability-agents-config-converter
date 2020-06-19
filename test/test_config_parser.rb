@@ -7,11 +7,6 @@ require 'fluent/config/v1_parser'
 
 # tests for config tool
 class TestConfigParser < Test::Unit::TestCase
-  # helper function to create object of message Param
-  def get_param(name, value)
-    Config::Param.new(name: name, value: value)
-  end
-
   # test to ensure comments are not parsed
   def test_comments
     dir1 = Config::Directive.new(name: 'system', params: [get_param('rpc', '0.0.0:2')])
@@ -33,17 +28,6 @@ class TestConfigParser < Test::Unit::TestCase
     assert(ConfigParser.proto_config(ConfigParser.parse_config('test/data/special.conf')) == special)
   end
 
-  # helper function to create Directive object match
-  def create_match_multiple
-    stdout = get_param('@type', 'stdout')
-    store = Config::Directive.new(name: 'store', params: [stdout, get_param('output', 'json')])
-    store2 = Config::Directive.new(name: 'store', params: [stdout, get_param('output', 'ltsv')])
-    buffer = Config::Directive.new(name: 'buffer', args: 'time,tag,memory', params: [get_param('@type', 'memory')])
-    match = Config::Directive.new(name: 'match', args: 'test.copy', directives: [store, store2, buffer])
-    match.params.push(Config::Param.new(name: '@type', value: 'copy'))
-    match
-  end
-
   # test to check nested directives are parsed correctly
   def test_multiple
     source = Config::Directive.new(name: 'source', params: [get_param('@type', 'dummy'), get_param('tag', 'test.rr')])
@@ -51,6 +35,20 @@ class TestConfigParser < Test::Unit::TestCase
     label = Config::Directive.new(name: 'label', args: '@test', directives: [match])
     multiple = Config::Directive.new(name: 'ROOT', directives: [source, label])
     assert(ConfigParser.proto_config(ConfigParser.parse_config('test/data/multiple.conf')) == multiple)
+  end
+
+  # test to make sure embedded ruby is not parsed
+  def test_emb
+    source = Config::Directive.new(name: 'source', params: [get_param('@type', 'tail'), get_param('@label', '@raw')])
+    emb = Config::Directive.new(name: 'ROOT', directives: [source, create_match_emb])
+    assert(ConfigParser.proto_config(ConfigParser.parse_config('test/data/emb_ruby.conf')) == emb)
+  end
+
+  private
+
+  # helper function to create object of message Param
+  def get_param(name, value)
+    Config::Param.new(name: name, value: value)
   end
 
   # helper function to make Directive object secondary
@@ -67,10 +65,14 @@ class TestConfigParser < Test::Unit::TestCase
     match
   end
 
-  # test to make sure embedded ruby is not parsed
-  def test_emb
-    source = Config::Directive.new(name: 'source', params: [get_param('@type', 'tail'), get_param('@label', '@raw')])
-    emb = Config::Directive.new(name: 'ROOT', directives: [source, create_match_emb])
-    assert(ConfigParser.proto_config(ConfigParser.parse_config('test/data/emb_ruby.conf')) == emb)
+  # helper function to create Directive object match
+  def create_match_multiple
+    stdout = get_param('@type', 'stdout')
+    store = Config::Directive.new(name: 'store', params: [stdout, get_param('output', 'json')])
+    store2 = Config::Directive.new(name: 'store', params: [stdout, get_param('output', 'ltsv')])
+    buffer = Config::Directive.new(name: 'buffer', args: 'time,tag,memory', params: [get_param('@type', 'memory')])
+    match = Config::Directive.new(name: 'match', args: 'test.copy', directives: [store, store2, buffer])
+    match.params.push(Config::Param.new(name: '@type', value: 'copy'))
+    match
   end
 end
