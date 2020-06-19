@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
     'https://github.com/googleinterns/observability-agents-config-converter'
   s.license = 'Apache-2.0'
   s.executables << 'config_parser'
-  s.files = ['lib/config_parser.rb', 'lib/config_pb.rb']
+  s.files = Dir['**/*'].keep_if { |file| File.file?(file) }
   s.add_runtime_dependency 'fluentd', '1.11.0'
   s.add_development_dependency 'rake', '13.0.1'
   s.add_development_dependency 'rubocop', '0.85.0'

@@ -10,8 +10,8 @@ class ConfigParser
     @argv = argv
     prepare_input_parser
     input_validation
-    @file_parse = parse_config
-    @proto_obj = proto_config(@file_parse)
+    @file_parse = ConfigParser.parse_config(@argv[0])
+    @proto_obj = ConfigParser.proto_config(@file_parse)
     File.write(@argv[1].to_s + '/config.json',
                Config::Directive.encode_json(@proto_obj))
   end
@@ -46,10 +46,10 @@ class ConfigParser
   end
 
   # extracts required information and parses the config file
-  def parse_config
-    file_str = File.read(@argv[0])
-    file_name = File.basename(@argv[0])
-    file_dir = File.dirname(@argv[0])
+  def self.parse_config(path)
+    file_str = File.read(path)
+    file_name = File.basename(path)
+    file_dir = File.dirname(path)
     eval_context = Kernel.binding
     # overriding function so embedded ruby is not parsed
     def eval_context.instance_eval(code)
@@ -59,7 +59,7 @@ class ConfigParser
   end
 
   # stores name, attributes, elements of each element of config with proto
-  def proto_config(ele_obj)
+  def self.proto_config(ele_obj)
     ele_dir = Config::Directive.new
     ele_dir.name = ele_obj.name
     ele_dir.args = ele_obj.arg
