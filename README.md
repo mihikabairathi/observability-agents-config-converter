@@ -17,3 +17,16 @@ Developing this tool will increase the confidence of migrating configurations
 to new agents, and reduce the friction to adopt the new agents, since
 users can will use the migration tool.
 
+## Installation Instructions
+
+Run these commands in the config_converter/config_parser_ruby/ directory
+<pre><code>  $ gem install bundler
+$ bundle install
+$ gem build config_parser.gemspec
+$ gem install config_parser-0.0.0.gem
+</code></pre>
+
+## How to run
+
+<pre><code>  $ ./bin/config_converter path/to/config/file path/to/output/directory
+</code></pre>
