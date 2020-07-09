@@ -3,4 +3,4 @@
 import subprocess
 import sys
 
-subprocess.run(["python3", "-B", "-m", "config_converter"] + sys.argv[1:])
+subprocess.run(["python3", "-m", "config_converter"] + sys.argv[1:])
