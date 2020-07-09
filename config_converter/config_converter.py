@@ -5,14 +5,14 @@ path to the config file to migrate, and a directory to store the output
 master agent config file in.
 
 To do:
-1. Improve the cli. Include a --help option. Allow for optional arguments like
+1. Improve the cli. Include a --help option. Allow optional args like
    log-level and log-filepath (see project docs).
 2. Create a mapping for log_level if there in the fluentd config file and input
    default ones if not given
-3. Generate stats like number of fields converted, ignored, etc. Output to
-   STDOUT schema
+3. Generate stats like #fields converted, ignored, and output as schema
 4. Generate logs
 5. Fix types of numbers, lists
+6. Generate tests to check if for right logs, right stats, above changes
 """
 
 import copy
@@ -34,12 +34,20 @@ def get_object():
     """Run ruby exec file and get message object."""
     try:
         subprocess.run(
-            ['config_converter/config_parser_ruby/bin/' +
-             'config_parser'] + sys.argv[1:], check=True)
+            ['config_converter/config_parser_ruby/bin/' + 'config_parser'] +
+            sys.argv[1:],
+            check=True)
     except:
         sys.exit()
     return json_format.Parse(read_file(sys.argv[-1] + '/config.json'),
                              config_pb2.Directive())
+ 
+
+def write_to_yaml(result):
+    """Writes created result dictionary to a yaml file."""
+    file_name = os.path.splitext(os.path.basename(sys.argv[1]))[0]
+    with open(f'{sys.argv[-1]}/{file_name}.yaml', 'w') as f:
+        yaml.dump(result, f)
 
 
 class ConfigConverter():
@@ -49,21 +57,12 @@ class ConfigConverter():
         self.create_mapping_info()
         self.config_obj = get_object()
         self.extract_root_dirs()
-        self.write_to_yaml()
+        write_to_yaml(self.result)
         subprocess.run(['rm', f'{sys.argv[-1]}/config.json'], check=True)
-
-    def write_to_yaml(self):
-        """Writes created result dictionary to a yaml file."""
-        file_name = os.path.splitext(os.path.basename(sys.argv[1]))[0]
-        with open(f'{sys.argv[-1]}/{file_name}.yaml', 'w') as f:
-            yaml.dump(self.result, f)
 
     def extract_root_dirs(self):
         """Checks root dirs, maps with corresponding params if supported."""
-        plugin_prefix_map = {
-            'source': 'in_',
-            'match': 'out_'
-        }
+        plugin_prefix_map = {'source': 'in_', 'match': 'out_'}
         dir_name_map = {
             'source': 'sources',
             'match': 'output'
@@ -78,7 +77,7 @@ class ConfigConverter():
                     if plugin in self.supported_plugins:
                         self.result['logs_module'][dir_name_map[d.name]] = \
                                 self.result['logs_module'].get(
-                                        dir_name_map[d.name], [])
+                                    dir_name_map[d.name], [])
                         cur = self.plugin_convert(d, plugin)
                         self.result['logs_module'][dir_name_map[d.name]]\
                                 .append(cur)
@@ -97,18 +96,18 @@ class ConfigConverter():
         plugin_type_map = {'tail': 'file'}
         outer_map_copy = copy.copy(outer_map)
         for p in d.params:
-            if p.name in outer_map:
+            if p.name in outer_map_copy:
                 if p.name == '@type':
                     cur[outer_map[p.name]] = plugin_type_map[p.value]
                 else:
                     cur[outer_map[p.name]] = p.value
-                outer_map.pop(p.name)
-        if outer_map != {}:
+                outer_map_copy.pop(p.name)
+        if outer_map_copy != {}:
             print('invalid configuration')
             sys.exit()
         specific = {}
         for p in d.params:
-            if p.name not in outer_map_copy:
+            if p.name not in outer_map:
                 if p.name in self.unsupported_fields:
                     print(f'parameter {p.name} cant be converted')
                 elif p.name in special_params:
@@ -134,8 +133,7 @@ class ConfigConverter():
 
     def create_mapping_info(self):
         """Initializes all the mapping rules."""
-        # dictionary of dictionaries - one per plugin
-        # each dict contains fields that stay in the current level only
+        # each sub dict contains fields that stay in the current level only
         self.main_map = {
             'in_tail': {
                 'exclude_path': 'exclude_path',
@@ -146,21 +144,18 @@ class ConfigConverter():
                 'rotate_wait': 'rotate_wait'
             }
         }
-        # dictionary of lists - one per plugin
-        # each list contains fields that need to be treated differently
+        # each sub list contains fields that need to be treated differently
         self.special_map = {
             'in_tail': [
                 'format', 'format_firstline', '@type',
-                'multiline_flush_interval', 'expresssion'
+                'multiline_flush_interval', 'expression'
             ] + [f'format{i}' for i in range(1, 21)]
         }
         # dictionary of dictionaries - one per main plugin type (source, match)
         # each dict contains fields that go in the upper level
         self.outer_map = {'source': {'tag': 'name', '@type': 'type'}}
-        # dictionary of lists - one per plugin
-        # each list contains known and allowed sub directives
+        # each sub list contains known and allowed sub directives
         self.supported_dirs = {'in_tail': ['parse']}
-        # list of fields that we know we cannot convert
         self.unsupported_fields = [
             'emit_unmatched_lines', 'enable_stat_watcher',
             'enable_watch_timer', 'encoding', 'from_encoding',
@@ -169,9 +164,7 @@ class ConfigConverter():
             'pos_file_compaction_interval', 'read_from_head',
             'read_lines_limit', 'skip_refresh_on_startup'
         ]
-        # plugins that we know how to convert
         self.supported_plugins = ['in_tail']
-        # plugins we know exist but cannot support at the time
         self.unsupported_plugins = ['in_forward', 'in_syslog']
 
 
