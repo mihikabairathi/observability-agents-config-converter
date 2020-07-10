@@ -30,6 +30,3 @@ $ gem install config_parser-0.0.0.gem
 
 <pre><code>  $ ./bin/config_converter path/to/config/file path/to/output/directory
 </code></pre>
-OR
-<pre><code>  $ python3 -m config_converter path/to/config/file path/to/output/directory
-</code></pre>
