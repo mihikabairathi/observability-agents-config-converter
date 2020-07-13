@@ -29,15 +29,14 @@ class ConfigConverter():
     def __init__(self, config_obj):
         self.result = {'logs_module': dict()}
         self._create_mapping_info()
-        self.config_obj = config_obj
-        self._extract_root_dirs()
+        self._extract_root_dirs(config_obj)
 
-    def _extract_root_dirs(self) -> None:
+    def _extract_root_dirs(self, config_obj: config_pb2.Directive) -> None:
         """Checks root dirs, maps with corresponding params if supported."""
         plugin_prefix_map = {'source': 'in_', 'match': 'out_'}
         dir_name_map = {'source': 'sources', 'match': 'output'}
         # these dicts can be updated when more plugins are supported
-        for d in self.config_obj.directives:
+        for d in config_obj.directives:
             if d.name not in plugin_prefix_map:
                 print("Currently we do not support plugins of " + d.name)
                 continue
@@ -102,7 +101,7 @@ class ConfigConverter():
         """Cases on p with all special_map dict, calls a map function."""
         if p.name in self.special_map[plugin]:
             if plugin == 'in_tail':
-                self.parser_dir(specific, p)
+                self._parser_dir(specific, p)
 
     def _create_mapping_info(self) -> None:
         """Initializes all the mapping rules."""
@@ -118,6 +117,8 @@ class ConfigConverter():
             }
         }
         # each sub list contains fields that need to be treated differently
+        # https://docs.fluentd.org/parser/multiline - shows formatN works for
+        # 1 <= N <= 20
         self.special_map = {
             'in_tail': [
                 'format', 'format_firstline', '@type',
@@ -140,7 +141,7 @@ class ConfigConverter():
         self.supported_plugins = ['in_tail']
         self.unsupported_plugins = ['in_forward', 'in_syslog']
 
-    def parser_dir(self, specific: dict, p: config_pb2.Param) -> None:
+    def _parser_dir(self, specific: dict, p: config_pb2.Param) -> None:
         """Create parser dir in master config."""
         parser_type_map = {
             'multiline': 'multiline',
@@ -164,12 +165,13 @@ class ConfigConverter():
         else:
             specific['parser']['multiline_parser_config'] = \
                     specific['parser'].get('multiline_parser_config', {})
-            if p.name[-1].isdigit():
+            if p.name in [f'format{i}' for i in range(1, 21)]:
+                format_number = p.name[6:]
                 specific['parser']['multiline_parser_config']\
-                        ['format_' + p.name[6:]] = p.value
+                        [f'format_{format_number}'] = p.value
             elif p.name == 'multiline_flush_interval':
-                specific['parser']['multiline_parser_config'][p.name[10:]] = \
-                        p.value
+                specific['parser']['multiline_parser_config']['flush_interval']\
+                        = p.value
             else:
                 specific['parser']['multiline_parser_config'][p.name] = p.value
 
