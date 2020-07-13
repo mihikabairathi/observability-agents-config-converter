@@ -21,7 +21,7 @@ def check_equality(config_name):
     config_converter.write_to_yaml(
         config_converter.ConfigConverter(config_obj).result, master_path,
         config_name)
-    expected = read_file(f'test/data/cases/{config_name}_expected.yaml')
+    expected = read_file(f'test/data/cases/{config_name}.yaml')
     observed = read_file(f'{master_path}/{config_name}.yaml')
     assert expected == observed
     subprocess.run(["rm", 'test/data/observed/config.json'], check=True)
