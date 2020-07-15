@@ -6,25 +6,25 @@ Note: Run this file from the parent directory (outside test folder)
 """
 
 import subprocess
-import config_converter.config_converter as config_converter
 
 
 def read_file(path):
+    """Reads file contents at path."""
     with open(path, 'rt') as f:
         return f.read()
 
 
 def check_equality(config_name):
-    fluentd_path = f'test/data/cases/{config_name}.conf'
-    master_path = 'test/data/observed'
-    config_obj = config_converter.get_object([fluentd_path, master_path])
-    config_converter.write_to_yaml(
-        config_converter.ConfigConverter(config_obj).result, master_path,
-        config_name)
+    subprocess.run([
+        "python3", "-B", "-m", "config_script",
+        f'test/data/cases/{config_name}.conf', 'test/data/observed'
+    ],
+                   check=True)
     expected = read_file(f'test/data/cases/{config_name}.yaml')
-    observed = read_file(f'{master_path}/{config_name}.yaml')
+    observed = read_file(f'test/data/observed/{config_name}.yaml')
+    subprocess.run(["rm", f'test/data/observed/{config_name}.yaml'],
+                   check=True)
     assert expected == observed
-    subprocess.run(["rm", 'test/data/observed/config.json'], check=True)
 
 
 def test_no_in_tail():

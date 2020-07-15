@@ -28,5 +28,5 @@ $ gem install config_parser-0.0.0.gem
 
 ## How to run
 
-<pre><code>  $ ./bin/config_converter path/to/config/file path/to/output/directory
+<pre><code>  $ python3 -m [--help] config_script path/to/config/file path/to/output/directory
 </code></pre>
