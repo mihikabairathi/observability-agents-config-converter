@@ -21,7 +21,9 @@ import yaml
 from google.protobuf import json_format
 from config_converter.config_mapper import config_pb2
 
-# each sub dict contains fields that stay in the current level only
+# each plugin (key) maps to a dictionary of all possible fields (value)
+# each sub-dict maps fluentd field names (key) to master agent fields (value)
+# each sub-dict only contains fields that stay in the same level after mapping
 _MAIN_MAP = {
     'in_tail': {
         'exclude_path': 'exclude_path',
@@ -32,7 +34,8 @@ _MAIN_MAP = {
         'rotate_wait': 'rotate_wait'
     }
 }
-# each sub list contains fields that need to be treated differently
+# each plugin (key) maps to a list of all possible special fields (value)
+# these fields may not belong to the same level, not have a 1:1 mapping, etc
 # https://docs.fluentd.org/parser/multiline - shows formatN works for
 # 1 <= N <= 20
 _SPECIAL_MAP = {
@@ -41,11 +44,15 @@ _SPECIAL_MAP = {
         'expression'
     ] + [f'format{i}' for i in range(1, 21)]
 }
-# dictionary of dictionaries - one per main plugin type (source, match)
-# each dict contains fields that go in the upper level
-_OUTER_MAP = {'source': {'tag': 'name', '@type': 'type'}}
-# each sub list contains known and allowed sub directives
+# each main plugin type (key) maps to a dict of required fields (value)
+# these sub-dicts are common for all plugins of a type, hence different keys
+# each sub-dict maps fluentd field names (key) to master agent fields (value)
+# each sub-dict only contains fields that go in the upper level after mapping
+_OUTER_LEVEL_MAP = {'source': {'tag': 'name', '@type': 'type'}}
+# each plugin (key) maps to a list of all possible directives (value)
+# each list contains known and allowed sub directives
 _SUPPORTED_DIRS = {'in_tail': ['parse']}
+# list of fields we do not know how to convert
 _UNSUPPORTED_FIELDS = [
     'emit_unmatched_lines', 'enable_stat_watcher', 'enable_watch_timer',
     'encoding', 'from_encoding', 'ignore_repeated_permission_error',
@@ -53,7 +60,9 @@ _UNSUPPORTED_FIELDS = [
     'pos_file_compaction_interval', 'read_from_head', 'read_lines_limit',
     'skip_refresh_on_startup'
 ]
+# plugins we know how to convert
 _SUPPORTED_PLUGINS = ['in_tail']
+# plugins we do not know how to convert
 _UNSUPPORTED_PLUGINS = ['in_forward', 'in_syslog']
 
 
@@ -88,7 +97,7 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> dict:
 def _plugin_convert(d: config_pb2.Directive, plugin: str) -> dict:
     """Uses mapping rules passed to function to map all fields."""
     cur = {}
-    outer_map = _OUTER_MAP[d.name]
+    outer_map = _OUTER_LEVEL_MAP[d.name]
     main_map = _MAIN_MAP[plugin]
     special_params = _SPECIAL_MAP[plugin]
     supported_dirs = _SUPPORTED_DIRS[plugin]
@@ -131,10 +140,10 @@ def _map_special_fields(specific: dict, p: config_pb2.Param,
     """Cases on p with all special_map dict, calls a map function."""
     if p.name in _SPECIAL_MAP[plugin]:
         if plugin == 'in_tail':
-            _parser_dir(specific, p)
+            _map_parser_dir(specific, p)
 
 
-def _parser_dir(specific: dict, p: config_pb2.Param) -> None:
+def _map_parser_dir(specific: dict, p: config_pb2.Param) -> None:
     """Create parser dir in master config."""
     parser_type_map = {
         'multiline': 'multiline',

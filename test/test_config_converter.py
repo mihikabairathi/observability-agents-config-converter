@@ -6,6 +6,7 @@ Note: Run this file from the parent directory (outside test folder)
 """
 
 import subprocess
+import tempfile
 
 
 def read_file(path):
@@ -15,15 +16,14 @@ def read_file(path):
 
 
 def check_equality(config_name):
-    subprocess.run([
-        "python3", "-B", "-m", "config_script",
-        f'test/data/cases/{config_name}.conf', 'test/data/observed'
-    ],
-                   check=True)
-    expected = read_file(f'test/data/cases/{config_name}.yaml')
-    observed = read_file(f'test/data/observed/{config_name}.yaml')
-    subprocess.run(["rm", f'test/data/observed/{config_name}.yaml'],
-                   check=True)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        subprocess.run([
+            "python3", "-B", "-m", "config_script",
+            f'test/data/{config_name}.conf', tmpdirname
+        ],
+                       check=True)
+        expected = read_file(f'test/data/{config_name}.yaml')
+        observed = read_file(f'{tmpdirname}/{config_name}.yaml')
     assert expected == observed
 
 
