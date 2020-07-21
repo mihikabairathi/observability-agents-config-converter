@@ -20,13 +20,15 @@ users can will use the migration tool.
 ## Installation Instructions
 
 Run these commands in the config_converter/config_parser_ruby/ directory
-<pre><code>  $ gem install bundler
+```
+$ gem install bundler
 $ bundle install
 $ gem build config_parser.gemspec
 $ gem install config_parser-0.0.0.gem
-</code></pre>
+```
 
 ## How to run
 
-<pre><code>  $ python3 -m [--help] config_script path/to/config/file path/to/output/directory
-</code></pre>
+```
+$ python3 -m [--help] config_script path/to/config/file path/to/output/directory
+```
