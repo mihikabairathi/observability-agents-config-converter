@@ -1,58 +1,27 @@
-"""Program that converts a fluentd config file to a master agent config file.
+"""Converts fields of a fluentd config file to a master agent config file.
 
-Usage: Run the exec file in the bin folder with 2 arguments - the
-path to the config file to migrate, and a directory to store the output
-master agent config file in.
-
+Usage: To run just this file:
+    python3 -m config_converter.config_mapper.config_mapper
+               <master path> <file name> <config json>
+Where:
+    master path: directory to store master agent config file in
+    file name: what you want to name the master agent file
+    config json: string of fluentd config parsed into a json format
 To do:
-1. Improve the CLI. Include a --help option. Allow optional args like
-   log-level and log-filepath (see project docs).
-2. Create a mapping for log_level if there in the fluentd config file and input
-   default ones if not given
-3. Generate stats like #fields converted, ignored, and output as schema
-4. Generate logs
-5. Fix types of numbers, lists
-6. Generate tests to check if for right logs, right stats, above changes
+    1. Improve CLI, with args like log-level and log-filepath (argparse).
+    2. Mapping for log-level, replace with default if not given.
+    3. Stats like #fields converted, output as schema.
+    4. Generate logs.
+    5. Fix types of numbers, lists.
+    6. Tests for right logs, stats, above changes.
 """
 
-import copy
 import sys
 import yaml
 from google.protobuf import json_format
 from config_converter.config_mapper import config_pb2
 
-# each plugin (key) maps to a dictionary of all possible fields (value)
-# each sub-dict maps fluentd field names (key) to master agent fields (value)
-# each sub-dict only contains fields that stay in the same level after mapping
-_MAIN_MAP = {
-    'in_tail': {
-        'exclude_path': 'exclude_path',
-        'path': 'path',
-        'path_key': 'path_field_name',
-        'pos_file': 'checkpoint_file',
-        'refresh_interval': 'refresh_interval',
-        'rotate_wait': 'rotate_wait'
-    }
-}
-# each plugin (key) maps to a list of all possible special fields (value)
-# these fields may not belong to the same level, not have a 1:1 mapping, etc
-# https://docs.fluentd.org/parser/multiline - shows formatN works for
-# 1 <= N <= 20
-_SPECIAL_MAP = {
-    'in_tail': [
-        'format', 'format_firstline', '@type', 'multiline_flush_interval',
-        'expression'
-    ] + [f'format{i}' for i in range(1, 21)]
-}
-# each main plugin type (key) maps to a dict of required fields (value)
-# these sub-dicts are common for all plugins of a type, hence different keys
-# each sub-dict maps fluentd field names (key) to master agent fields (value)
-# each sub-dict only contains fields that go in the upper level after mapping
-_OUTER_LEVEL_MAP = {'source': {'tag': 'name', '@type': 'type'}}
-# each plugin (key) maps to a list of all possible directives (value)
-# each list contains known and allowed sub directives
-_SUPPORTED_DIRS = {'in_tail': ['parse']}
-# list of fields we do not know how to convert
+# fields we cannot convert from fluentd to master agent configs
 _UNSUPPORTED_FIELDS = [
     'emit_unmatched_lines', 'enable_stat_watcher', 'enable_watch_timer',
     'encoding', 'from_encoding', 'ignore_repeated_permission_error',
@@ -62,88 +31,91 @@ _UNSUPPORTED_FIELDS = [
 ]
 # plugins we know how to convert
 _SUPPORTED_PLUGINS = ['in_tail']
-# plugins we do not know how to convert
-_UNSUPPORTED_PLUGINS = ['in_forward', 'in_syslog']
 
 
 def extract_root_dirs(config_obj: config_pb2.Directive) -> dict:
-    """Checks root dirs, maps with corresponding params if supported."""
-    result = {'logs_module': dict()}
+    """Checks all dirs, maps with corresponding params if supported."""
+    logs_module = dict()
     plugin_prefix_map = {'source': 'in_', 'match': 'out_'}
     dir_name_map = {'source': 'sources', 'match': 'output'}
     # these dicts can be updated when more plugins are supported
     for d in config_obj.directives:
         if d.name not in plugin_prefix_map:
-            print("Currently we do not support plugins of " + d.name)
+            print(f'Currently we do not support plugins of {d.name}')
             continue
-        for p in d.params:
-            if p.name == '@type':
-                # identify the plugin
-                plugin = plugin_prefix_map[d.name] + p.value
-                if plugin in _SUPPORTED_PLUGINS:
-                    result['logs_module'][dir_name_map[d.name]] = \
-                            result['logs_module'].get(
-                                dir_name_map[d.name], [])
-                    converted_dir: dict = _plugin_convert(d, plugin)
-                    result['logs_module'][dir_name_map[d.name]]\
-                                .append(converted_dir)
-                elif plugin in _UNSUPPORTED_PLUGINS:
-                    print("we dont support plugin " + plugin)
-                else:
-                    print("we dont know plugin " + plugin)
+        try:
+            plugin_type = next(p.value for p in d.params if p.name == '@type')
+        except StopIteration:
+            print('Invalid configuration - missing @type param')
+            sys.exit()
+        plugin_name = plugin_prefix_map[d.name] + plugin_type
+        if plugin_name not in _SUPPORTED_PLUGINS:
+            print(f'We do not know plugin {plugin_name}')
+        else:
+            plugin_dir = dir_name_map[d.name]
+            if plugin_dir not in logs_module:
+                logs_module[plugin_dir] = []
+            logs_module[plugin_dir].append(_convert_plugin(d, plugin_name))
+    return {'logs_module': logs_module}
+
+
+def _convert_plugin(d: config_pb2.Directive, plugin: str) -> dict:
+    """Cases on plugin, calls corresponding mapping function."""
+    result = dict()
+    plugin_type_map = {'tail': 'file'}
+    plugin_type = next(p.value for p in d.params if p.name == '@type')
+    result['type'] = plugin_type_map[plugin_type]
+    try:
+        result['name'] = next(p.value for p in d.params if p.name == 'tag')
+    except StopIteration:
+        print('Invalid configuration - missing tag')
+        sys.exit()
+    if plugin == 'in_tail':
+        result[f'{result["type"]}_{d.name}_config']: dict = _convert_in_tail(d)
     return result
 
 
-def _plugin_convert(d: config_pb2.Directive, plugin: str) -> dict:
-    """Uses mapping rules passed to function to map all fields."""
-    cur = {}
-    outer_map = _OUTER_LEVEL_MAP[d.name]
-    main_map = _MAIN_MAP[plugin]
-    special_params = _SPECIAL_MAP[plugin]
-    supported_dirs = _SUPPORTED_DIRS[plugin]
-    plugin_type_map = {'tail': 'file'}
-    outer_map_copy = copy.copy(outer_map)
-    # ensure all outer level params needed are there in directive
+def _convert_in_tail(d: config_pb2.Directive) -> dict:
+    """Uses mapping rules to convert in_tail plugin fields."""
+    fields = dict()
+    # these fields may not belong to the same level, have a 1:1 mapping, etc
+    # https://docs.fluentd.org/parser/multiline - shows formatN works for
+    # 1 <= N <= 20
+    special_fields = [
+        'format', 'format_firstline', '@type', 'multiline_flush_interval',
+        'expression'
+    ] + [f'format{i}' for i in range(1, 21)]
     for p in d.params:
-        if p.name in outer_map_copy:
-            if p.name == '@type':
-                cur[outer_map[p.name]] = plugin_type_map[p.value]
-            else:
-                cur[outer_map[p.name]] = p.value
-            outer_map_copy.pop(p.name)
-    if outer_map_copy != {}:
-        print('invalid configuration')
-        sys.exit()
-    specific = {}
-    for p in d.params:
-        if p.name not in outer_map:
-            if p.name in _UNSUPPORTED_FIELDS:
-                print(f'parameter {p.name} cant be converted')
-            elif p.name in special_params:
-                _map_special_fields(specific, p, plugin)
-            elif p.name not in main_map:
-                print(f'parameter {p.name} is unknown')
-            else:
-                specific[main_map[p.name]] = p.value
-    for nd in d.directives:
-        if nd.name not in supported_dirs:
-            print(f'directive {nd.name} is not supported')
+        if p.name == '@type' or p.name == 'tag':
+            continue
+        if p.name == 'exclude_path':
+            fields['exclude_path'] = p.value
+        elif p.name == 'path':
+            fields['path'] = p.value
+        elif p.name == 'path_key':
+            fields['path_field_name'] = p.value
+        elif p.name == 'pos_file':
+            fields['checkpoint_file'] = p.value
+        elif p.name == 'refresh_interval':
+            fields['refresh_interval'] = p.value
+        elif p.name == 'rotate_wait':
+            fields['rotate_wait'] = p.value
+        elif p.name in special_fields:
+            _convert_parse_dir(fields, p)
+        elif p.name in _UNSUPPORTED_FIELDS:
+            print(f'{p.name} cannot be mapped into master agent config file.')
         else:
+            print(f'{p.name} is an unknown field.')
+    for nd in d.directives:
+        if nd.name == 'parse':
             for np in nd.params:
-                _map_special_fields(specific, np, plugin)
-    cur[f'{cur["type"]}_{d.name}_config'] = specific
-    return cur
+                _convert_parse_dir(fields, np)
+        else:
+            print(f'{nd.name} is an unknown directive.')
+    return fields
 
 
-def _map_special_fields(specific: dict, p: config_pb2.Param,
-                        plugin: str) -> None:
-    """Cases on p with all special_map dict, calls a map function."""
-    if p.name in _SPECIAL_MAP[plugin]:
-        if plugin == 'in_tail':
-            _map_parser_dir(specific, p)
-
-
-def _map_parser_dir(specific: dict, p: config_pb2.Param) -> None:
+def _convert_parse_dir(specific: dict, p: config_pb2.Param) -> None:
     """Create parser dir in master config."""
     parser_type_map = {
         'multiline': 'multiline',
@@ -154,10 +126,10 @@ def _map_parser_dir(specific: dict, p: config_pb2.Param) -> None:
         'json': 'json',
         'nginx': 'regex'
     }
-    specific['parser'] = specific.get('parser', {})
+    specific['parser'] = specific.get('parser', dict())
     if p.name == 'expression':
-        specific['parser']['regex_parser_config'] = \
-                specific['parser'].get('regex_parser_config', {})
+        if 'regex_parser_config' not in specific['parser']:
+            specific['parser']['regex_parser_config'] = dict()
         specific['parser']['regex_parser_config'][p.name] = p.value
     elif p.name == 'format' or p.name == '@type':
         if p.value not in parser_type_map:
@@ -165,12 +137,12 @@ def _map_parser_dir(specific: dict, p: config_pb2.Param) -> None:
         else:
             specific['parser']['type'] = parser_type_map[p.value]
     else:
-        specific['parser']['multiline_parser_config'] = \
-                specific['parser'].get('multiline_parser_config', {})
+        if 'multiline_parser_config' not in specific['parser']:
+            specific['parser']['multiline_parser_config'] = dict()
         if p.name in [f'format{i}' for i in range(1, 21)]:
-            format_number = p.name[6:]
-            specific['parser']['multiline_parser_config']\
-                    [f'format_{format_number}'] = p.value
+            f_num = p.name[6:]
+            specific['parser']['multiline_parser_config'][f'format_{f_num}']\
+                = p.value
         elif p.name == 'multiline_flush_interval':
             specific['parser']['multiline_parser_config']['flush_interval']\
                     = p.value
@@ -184,15 +156,8 @@ def write_to_yaml(result: dict, path: str, name: str) -> None:
         yaml.dump(result, f)
 
 
-def read_file(path: str) -> str:
-    """Returns contents of file at given path."""
-    with open(path, 'rt') as f:
-        return f.read()
-
-
 if __name__ == '__main__':
-    master_path, file_name = sys.argv[1], sys.argv[2]
-    config_json = sys.argv[-1]
-    yaml_dict = extract_root_dirs(
+    master_path, file_name, config_json = sys.argv[1], sys.argv[2], sys.argv[3]
+    yaml_dict: dict = extract_root_dirs(
         json_format.Parse(config_json, config_pb2.Directive()))
     write_to_yaml(yaml_dict, master_path, file_name)

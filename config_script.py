@@ -1,7 +1,11 @@
 """
-Program that converts a fluentd config file to master agent config file.
+Program that converts a fluentd config file to a master agent config file.
 
-Usage: python3 -m [--help] config_script <path to file> <path to dir>
+Usage:
+    python3 -m config_script <fluentd path> <master path>
+Where:
+    master path: directory to store master agent config file in
+    fluentd path: path to the fluentd config file
 """
 
 import os
@@ -42,7 +46,7 @@ def convert_object(args: list) -> None:
 
 
 if __name__ == '__main__':
-    args_passed = sys.argv[1:]  # list of config_path and master_directory
+    args_passed = sys.argv[1:]
     get_object(args_passed)
     fluentd_path = args_passed[0]
     master_dir = args_passed[1]
