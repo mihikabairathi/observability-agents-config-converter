@@ -19,7 +19,7 @@ class ConfigParser
   # builds the parser to accept file path
   def prepare_input_parser
     @input_parser = OptionParser.new
-    @input_parser.banner = "\nConfig Migration Tool\nUsage: #{$PROGRAM_NAME} " \
+    @input_parser.banner = "\nConfig Migration Tool\nArguments: " \
       "path/to/config/file path/to/output/directory\nOutput: Parsed version " \
       'of config file in a json file'
     @input_parser.parse!(@argv)
