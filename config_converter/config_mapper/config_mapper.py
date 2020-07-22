@@ -2,18 +2,16 @@
 
 Usage: To run just this file:
     python3 -m config_converter.config_mapper.config_mapper
-               <master path> <file name> <config json>
+    <master path> <file name> <log level> <log filepath> <config json>
 Where:
     master path: directory to store master agent config file in
     file name: what you want to name the master agent file
     config json: string of fluentd config parsed into a json format
 To do:
-    1. Improve CLI, with args like log-level and log-filepath (argparse).
-    2. Mapping for log-level, replace with default if not given.
-    3. Stats like #fields converted, output as schema.
-    4. Generate logs.
-    5. Fix types of numbers, lists.
-    6. Tests for right logs, stats, above changes.
+    1. Stats like #fields converted, output as schema.
+    2. Generate logs.
+    3. Tests for right logs, stats, CLI additions.
+    4. Extensive testing with sample files
 """
 
 import sys
@@ -89,7 +87,7 @@ def _convert_in_tail(d: config_pb2.Directive) -> dict:
         if p.name == '@type' or p.name == 'tag':
             continue
         if p.name == 'exclude_path':
-            fields['exclude_path'] = p.value
+            fields['exclude_path'] = eval(p.value)  # string to list
         elif p.name == 'path':
             fields['path'] = p.value
         elif p.name == 'path_key':
@@ -97,9 +95,9 @@ def _convert_in_tail(d: config_pb2.Directive) -> dict:
         elif p.name == 'pos_file':
             fields['checkpoint_file'] = p.value
         elif p.name == 'refresh_interval':
-            fields['refresh_interval'] = p.value
+            fields['refresh_interval'] = eval(p.value)  # string to time
         elif p.name == 'rotate_wait':
-            fields['rotate_wait'] = p.value
+            fields['rotate_wait'] = eval(p.value)  # string to time
         elif p.name in special_fields:
             _convert_parse_dir(fields, p)
         elif p.name in _UNSUPPORTED_FIELDS:
@@ -145,7 +143,7 @@ def _convert_parse_dir(specific: dict, p: config_pb2.Param) -> None:
                 = p.value
         elif p.name == 'multiline_flush_interval':
             specific['parser']['multiline_parser_config']['flush_interval']\
-                    = p.value
+                    = eval(p.value)  # string to time
         else:
             specific['parser']['multiline_parser_config'][p.name] = p.value
 
@@ -157,7 +155,10 @@ def write_to_yaml(result: dict, path: str, name: str) -> None:
 
 
 if __name__ == '__main__':
-    master_path, file_name, config_json = sys.argv[1], sys.argv[2], sys.argv[3]
+    master_path, file_name, config_json = sys.argv[1], sys.argv[2], sys.argv[5]
+    log_level, log_filepath = sys.argv[3], sys.argv[4]
     yaml_dict: dict = extract_root_dirs(
         json_format.Parse(config_json, config_pb2.Directive()))
+    yaml_dict['logging_level'] = log_level
+    yaml_dict['log_file_path'] = log_filepath
     write_to_yaml(yaml_dict, master_path, file_name)
