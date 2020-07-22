@@ -2,18 +2,16 @@
 
 Usage: To run just this file:
     python3 -m config_converter.config_mapper.config_mapper
-               <master path> <file name> <config json>
+    <master path> <file name> <log level> <log filepath> <config json>
 Where:
     master path: directory to store master agent config file in
     file name: what you want to name the master agent file
     config json: string of fluentd config parsed into a json format
 To do:
-    1. Improve CLI, with args like log-level and log-filepath (argparse).
-    2. Mapping for log-level, replace with default if not given.
-    3. Stats like #fields converted, output as schema.
-    4. Generate logs.
-    5. Fix types of numbers, lists.
-    6. Tests for right logs, stats, above changes.
+    1. Stats like #fields converted, output as schema.
+    2. Generate logs.
+    3. Tests for right logs, stats, CLI additions.
+    4. Extensive testing with sample files + pytype verification
 """
 
 import sys
@@ -36,6 +34,7 @@ _SUPPORTED_PLUGINS = ['in_tail']
 def extract_root_dirs(config_obj: config_pb2.Directive) -> dict:
     """Checks all dirs, maps with corresponding params if supported."""
     logs_module = dict()
+    result = {'logs_module': logs_module}
     plugin_prefix_map = {'source': 'in_', 'match': 'out_'}
     dir_name_map = {'source': 'sources', 'match': 'output'}
     # these dicts can be updated when more plugins are supported
@@ -56,7 +55,12 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> dict:
             if plugin_dir not in logs_module:
                 logs_module[plugin_dir] = []
             logs_module[plugin_dir].append(_convert_plugin(d, plugin_name))
-    return {'logs_module': logs_module}
+            try:
+                result['logging_level'] = next(p.value for p in d.params
+                                               if p.name == '@log_level')
+            except StopIteration:
+                continue
+    return result
 
 
 def _convert_plugin(d: config_pb2.Directive, plugin: str) -> dict:
@@ -86,7 +90,7 @@ def _convert_in_tail(d: config_pb2.Directive) -> dict:
         'expression'
     ] + [f'format{i}' for i in range(1, 21)]
     for p in d.params:
-        if p.name == '@type' or p.name == 'tag':
+        if p.name in {'@type', 'tag', '@log_level'}:
             continue
         if p.name == 'exclude_path':
             fields['exclude_path'] = p.value
@@ -97,9 +101,9 @@ def _convert_in_tail(d: config_pb2.Directive) -> dict:
         elif p.name == 'pos_file':
             fields['checkpoint_file'] = p.value
         elif p.name == 'refresh_interval':
-            fields['refresh_interval'] = p.value
+            fields['refresh_interval'] = int(p.value)
         elif p.name == 'rotate_wait':
-            fields['rotate_wait'] = p.value
+            fields['rotate_wait'] = int(p.value)
         elif p.name in special_fields:
             _convert_parse_dir(fields, p)
         elif p.name in _UNSUPPORTED_FIELDS:
@@ -145,7 +149,7 @@ def _convert_parse_dir(specific: dict, p: config_pb2.Param) -> None:
                 = p.value
         elif p.name == 'multiline_flush_interval':
             specific['parser']['multiline_parser_config']['flush_interval']\
-                    = p.value
+                    = int(p.value)
         else:
             specific['parser']['multiline_parser_config'][p.name] = p.value
 
@@ -157,7 +161,10 @@ def write_to_yaml(result: dict, path: str, name: str) -> None:
 
 
 if __name__ == '__main__':
-    master_path, file_name, config_json = sys.argv[1], sys.argv[2], sys.argv[3]
+    master_path, file_name, config_json = sys.argv[1], sys.argv[2], sys.argv[5]
+    log_level, log_filepath = sys.argv[3], sys.argv[4]
     yaml_dict: dict = extract_root_dirs(
         json_format.Parse(config_json, config_pb2.Directive()))
+    yaml_dict['logging_level'] = yaml_dict.get('logging_level', log_level)
+    yaml_dict['log_file_path'] = log_filepath
     write_to_yaml(yaml_dict, master_path, file_name)
