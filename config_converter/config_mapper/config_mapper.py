@@ -90,7 +90,7 @@ def _convert_in_tail(d: config_pb2.Directive) -> dict:
         'expression'
     ] + [f'format{i}' for i in range(1, 21)]
     for p in d.params:
-        if p.name in ['@type', 'tag', '@log_level']:
+        if p.name in {'@type', 'tag', '@log_level'}:
             continue
         if p.name == 'exclude_path':
             fields['exclude_path'] = p.value

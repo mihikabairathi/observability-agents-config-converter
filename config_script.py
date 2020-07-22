@@ -50,10 +50,14 @@ def convert_object(args: list) -> None:
 def validate_args(parser: argparse.ArgumentParser,
                   args: argparse.Namespace) -> None:
     """Validate paths of config file and master dir."""
-    if os.path.isfile(args.config_path) and os.path.isdir(args.master_dir):
+    if not os.path.isfile(args.config_path):
+        parser.print_usage()
+        print(f'{parser.prog}: error: {args.config_path} is invalid file')
+    elif not os.path.isdir(args.master_dir):
+        parser.print_usage()
+        print(f'{parser.prog}: error: {args.master_dir} is invalid directory')
+    else:
         return
-    parser.print_usage()
-    print(f'{parser.prog}: error: Incorrect file path or directory')
     sys.exit()
 
 
@@ -85,4 +89,5 @@ if __name__ == '__main__':
     get_object([args.config_path, args.master_dir])
     convert_object(
         [args.master_dir, file_name, args.log_level, args.log_filepath])
-    subprocess.run(['rm', f'{args.master_dir}/config.json'], check=True)
+    subprocess.run(['rm', os.path.join(args.master_dir, 'config.json')],
+                   check=True)
