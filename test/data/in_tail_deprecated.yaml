@@ -4,8 +4,11 @@ logs_module:
   sources:
   - file_source_config:
       checkpoint_file: /var/log/fluentd_test.pos
+      exclude_path: '["/var/log/httpd-access/*.zip"]'
       parser:
-        type: none
+        multiline_parser_config:
+          flush_interval: 5
+        type: multiline
       path: /var/log/fluentd_test.log
       refresh_interval: 60
       rotate_wait: 5

@@ -62,8 +62,8 @@ def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Configuration Converter',
                                      prog='PROG')
     parser.add_argument('config_path', help='path of fluentd config file')
-    parser.add_argument('master_dir', help='directory to store master ' +
-                        'config file in')
+    parser.add_argument('master_dir',
+                        help='directory to store master ' + 'config file in')
     parser.add_argument(
         '--log_level',
         default='info',
