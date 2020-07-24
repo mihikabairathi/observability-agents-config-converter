@@ -19,7 +19,7 @@ users can will use the migration tool.
 
 ## Installation Instructions
 
-Run these commands in the config_converter/config_parser_ruby/ directory
+Run these commands in the config_converter/config_parser/ directory
 ```
 $ gem install bundler
 $ bundle install

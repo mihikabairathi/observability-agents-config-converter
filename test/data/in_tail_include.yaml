@@ -1,0 +1,31 @@
+log_file_path: /var/log/ops_agent/ops_agent.log
+logging_level: warn
+logs_module:
+  sources:
+  - file_source_config:
+      checkpoint_file: /var/log/fluentd_test.pos
+      exclude_path: '["/var/log/httpd-access/*.zip"]'
+      parser:
+        multiline_parser_config:
+          flush_interval: 5
+        type: multiline
+      path: /var/log/fluentd_test.log
+      refresh_interval: 60
+      rotate_wait: 5
+    name: test
+    type: file
+  - file_source_config:
+      checkpoint_file: /var/log/fluentd_test.pos
+      parser:
+        regex_parser_config:
+          expression: /^Started/
+        type: regex
+      path: /var/log/fluentd_test.log
+      refresh_interval: 60
+      rotate_wait: 5
+    name: test
+    type: file
+  - file_source_config:
+      path: path/to/file
+    name: second
+    type: file
