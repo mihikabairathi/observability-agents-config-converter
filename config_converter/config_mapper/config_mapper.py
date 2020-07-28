@@ -8,11 +8,11 @@ Where:
     file name: what you want to name the master agent file
     config json: string of fluentd config parsed into a json format
 To do:
-    1. Stats like #fields converted, output as schema.
-    2. Generate logs.
-    3. Tests for right logs, stats.
+    1. Generate logs, update stats dict with log fields.
+    2. Tests for right logs, stats.
 """
 
+import json
 import sys
 import yaml
 from google.protobuf import json_format
@@ -28,6 +28,23 @@ _UNSUPPORTED_FIELDS = [
 ]
 # plugins we know how to convert
 _SUPPORTED_PLUGINS = ['in_tail']
+
+
+def initialize_stats(d: config_pb2.Directive) -> dict:
+    """Initializes the stats dict to print out."""
+    stats = {
+        'attributes_num': get_num_attrs(d),
+        'attributes_recognized': 0,
+        'attributes_unrecognized': 0,
+        'attributes_skipped': 0,
+        'entities_num': get_num_ents(d),
+        'entities_skipped': 0,
+        'entities_unrecognized': 0,
+        'entities_recognized_success': 0,
+        'entities_recognized_partial': 0,
+        'entities_recognized_failure': 0
+    }
+    return stats
 
 
 def get_num_attrs(d: config_pb2.Directive) -> int:
@@ -46,19 +63,18 @@ def get_num_ents(d: config_pb2.Directive) -> int:
     return num_ents
 
 
-def extract_root_dirs(config_obj: config_pb2.Directive, stats: dict) -> dict:
+def extract_root_dirs(config_obj: config_pb2.Directive) -> dict:
     """Checks all dirs, maps with corresponding params if supported."""
     logs_module = dict()
     result = {'logs_module': logs_module}
-    plugin_prefix_map = {'source': 'in_', 'match': 'out_'}
-    dir_name_map = {'source': 'sources', 'match': 'output'}
+    stats = initialize_stats(config_obj)
+    plugin_prefix_map = {'source': 'in_'}
+    dir_name_map = {'source': 'sources'}
     # these dicts can be updated when more plugins are supported
-    stats['attributes_num'] = get_num_attrs(config_obj)
-    stats['entities_num'] = get_num_ents(config_obj)
     for d in config_obj.directives:
         if d.name not in plugin_prefix_map:
-            stats['entities_unrecognized'] += 1
-            stats['attributes_unrecognized'] += get_num_attrs(d)
+            stats['entities_skipped'] += 1
+            stats['attributes_skipped'] += get_num_attrs(d)
             print(f'Currently we do not support plugins of {d.name}')
             continue
         try:
@@ -68,16 +84,16 @@ def extract_root_dirs(config_obj: config_pb2.Directive, stats: dict) -> dict:
             sys.exit()
         plugin_name = plugin_prefix_map[d.name] + plugin_type
         if plugin_name not in _SUPPORTED_PLUGINS:
-            stats['entities_skipped'] += 1
-            stats['attributes_skipped'] += get_num_attrs(d)
+            stats['entities_unrecognized'] += 1
+            stats['attributes_unrecognized'] += get_num_attrs(d)
             print(f'We do not know plugin {plugin_name}')
         else:
             plugin_dir = dir_name_map[d.name]
             if plugin_dir not in logs_module:
                 logs_module[plugin_dir] = []
             old_attrs = stats['attributes_recognized']
-            logs_module[plugin_dir].append(_convert_plugin(d, plugin_name,
-                                                           stats))
+            logs_module[plugin_dir].append(
+                _convert_plugin(d, plugin_name, stats))
             current_dir_attrs: int = get_num_attrs(d)
             if old_attrs + current_dir_attrs == stats['attributes_recognized']:
                 stats['entities_recognized_success'] += 1
@@ -91,6 +107,7 @@ def extract_root_dirs(config_obj: config_pb2.Directive, stats: dict) -> dict:
                 stats['attributes_recognized'] += 1
             except StopIteration:
                 continue
+    print(json.dumps(stats))
     return result
 
 
@@ -193,7 +210,7 @@ def _convert_parse_dir(specific: dict, p: config_pb2.Param) -> None:
         specific['parser']['regex_parser_config'][p.name] = p.value
     elif p.name == 'format' or p.name == '@type':
         if p.value not in parser_type_map:
-            print('unknown parser format type ' + p.value)
+            print(f'unknown parser format type {p.value}')
         else:
             specific['parser']['type'] = parser_type_map[p.value]
     else:
@@ -219,21 +236,8 @@ def write_to_yaml(result: dict, path: str, name: str) -> None:
 if __name__ == '__main__':
     master_path, file_name, config_json = sys.argv[1], sys.argv[2], sys.argv[5]
     log_level, log_filepath = sys.argv[3], sys.argv[4]
-    output_stats = {
-            'attributes_num': 0,
-            'attributes_recognized': 0,
-            'attributes_unrecognized': 0,
-            'attributes_skipped': 0,
-            'entities_num': 0,
-            'entities_skipped': 0,
-            'entities_unrecognized': 0,
-            'entities_recognized_success': 0,
-            'entities_recognized_partial': 0,
-            'entities_recognized_failure': 0
-            }
     yaml_dict: dict = extract_root_dirs(
-        json_format.Parse(config_json, config_pb2.Directive()), output_stats)
+        json_format.Parse(config_json, config_pb2.Directive()))
     yaml_dict['logging_level'] = yaml_dict.get('logging_level', log_level)
     yaml_dict['log_file_path'] = log_filepath
     write_to_yaml(yaml_dict, master_path, file_name)
-    print(output_stats)
