@@ -8,8 +8,7 @@ Where:
     file name: what you want to name the master agent file
     config json: string of fluentd config parsed into a json format
 To do:
-    1. Generate logs, update stats dict with log fields.
-    2. Tests for right logs, stats.
+    1. Generate logs, update stats dict with log fields, test it
 """
 
 import json
@@ -88,7 +87,7 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> tuple:
         if plugin_name not in _SUPPORTED_PLUGINS:
             stats['entities_unrecognized'] += 1
             stats['attributes_unrecognized'] +=\
-                    _get_aggregated_num_attributes(d)
+                _get_aggregated_num_attributes(d)
             print(f'We do not know plugin {plugin_name}')
         else:
             plugin_dir = dir_name_map[d.name]
@@ -183,7 +182,7 @@ def _convert_in_tail(d: config_pb2.Directive, stats: dict) -> dict:
                 else:
                     stats['attributes_unrecognized'] += 1
             present_dir_attribute_count: int =\
-                    _get_aggregated_num_attributes(nd)
+                _get_aggregated_num_attributes(nd)
             if current_attribute_count + present_dir_attribute_count ==\
                     stats['attributes_recognized']:
                 stats['entities_recognized_success'] += 1
@@ -216,7 +215,6 @@ def _convert_parse_dir(specific: dict, p: config_pb2.Param) -> None:
         specific['parser']['regex_parser_config'][p.name] = p.value
     elif p.name == 'format' or p.name == '@type':
         if p.value not in parser_type_map:
-            pass
             print(f'unknown parser format type {p.value}')
         else:
             specific['parser']['type'] = parser_type_map[p.value]
