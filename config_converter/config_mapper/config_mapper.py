@@ -86,8 +86,8 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> tuple:
         plugin_name = plugin_prefix_map[d.name] + plugin_type
         if plugin_name not in _SUPPORTED_PLUGINS:
             stats['entities_unrecognized'] += 1
-            stats['attributes_unrecognized'] +=\
-                _get_aggregated_num_attributes(d)
+            stats['attributes_unrecognized'] += _get_aggregated_num_attributes(
+                d)
             print(f'We do not know plugin {plugin_name}')
         else:
             plugin_dir = dir_name_map[d.name]
@@ -95,13 +95,13 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> tuple:
                 logs_module[plugin_dir] = []
             current_attribute_count = stats['attributes_recognized']
             logs_module[plugin_dir].append(
-                _convert_plugin(d, plugin_name, stats))
-            present_dir_attribute_count: int = _get_aggregated_num_attributes(
+                _convert_plugin(d, plugin_name, stats))  # stats are updated
+            current_dir_attribute_count: int = _get_aggregated_num_attributes(
                 d)
-            if current_attribute_count + present_dir_attribute_count ==\
-                    stats['attributes_recognized']:
+            if stats['attributes_recognized'] == current_attribute_count +\
+                    current_dir_attribute_count:
                 stats['entities_recognized_success'] += 1
-            elif current_attribute_count == stats['attributes_recognized']:
+            elif stats['attributes_recognized'] == current_attribute_count:
                 stats['entities_recognized_failure'] += 1
             else:
                 stats['entities_recognized_partial'] += 1
@@ -115,7 +115,24 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> tuple:
 
 
 def _convert_plugin(d: config_pb2.Directive, plugin: str, stats: dict) -> dict:
-    """Cases on plugin, calls corresponding mapping function."""
+    """Returns dict of mapped fields and values.
+
+    Cases on type of plugin, calls corresponding mapping function, which
+    returns a new dict of unified agent fields and their values.
+
+    Args:
+        d: an instance of config_pb2.Directive.
+        plugin: a string which indicates the plugin of the directive.
+        stats: a dict of all the stats to record, and gets updated to
+          reflect the current directive too within this function.
+
+    Returns:
+        A dict mapping field names of the unified agent to the corresponding
+        values. It may not include some fields if they couldn't be translated.
+
+    Raises:
+        StopIteration: An error occured while parsing d due to missing @tag.
+    """
     result = dict()
     plugin_type_map = {'tail': 'file'}
     plugin_type = next(p.value for p in d.params if p.name == '@type')
@@ -133,7 +150,20 @@ def _convert_plugin(d: config_pb2.Directive, plugin: str, stats: dict) -> dict:
 
 
 def _convert_in_tail(d: config_pb2.Directive, stats: dict) -> dict:
-    """Uses mapping rules to convert in_tail plugin fields."""
+    """Returns dict of mapped fields and values for intail plugin.
+
+    Parses a directive of in-tail plugin, cases on fields, and
+    returns a new dict of mapped fields and their values.
+
+    Args:
+        d: an instance of config_pb2.Directive.
+        stats: a dict of all the stats to record, and gets updated to
+          reflect the current directive too within this function.
+
+    Returns:
+        A dict mapping field names of the unified agent to the corresponding
+        values. It may not include some fields if they couldn't be translated.
+    """
     fields = dict()
     # these fields may not belong to the same level, have a 1:1 mapping, etc
     # https://docs.fluentd.org/parser/multiline - shows formatN works for
@@ -181,12 +211,12 @@ def _convert_in_tail(d: config_pb2.Directive, stats: dict) -> dict:
                     stats['attributes_recognized'] += 1
                 else:
                     stats['attributes_unrecognized'] += 1
-            present_dir_attribute_count: int =\
+            current_dir_attribute_count: int =\
                 _get_aggregated_num_attributes(nd)
-            if current_attribute_count + present_dir_attribute_count ==\
-                    stats['attributes_recognized']:
+            if stats['attributes_recognized'] == current_attribute_count +\
+                    current_dir_attribute_count:
                 stats['entities_recognized_success'] += 1
-            elif current_attribute_count == stats['attributes_recognized']:
+            elif stats['attributes_recognized'] == current_attribute_count:
                 stats['entities_recognized_failure'] += 1
             else:
                 stats['entities_recognized_partial'] += 1
