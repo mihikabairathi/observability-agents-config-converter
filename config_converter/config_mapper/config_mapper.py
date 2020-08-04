@@ -98,8 +98,8 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> tuple:
                 _convert_plugin(d, plugin_name, stats))  # stats are updated
             current_dir_attribute_count: int = _get_aggregated_num_attributes(
                 d)
-            if stats['attributes_recognized'] == current_attribute_count +\
-                    current_dir_attribute_count:
+            if (stats['attributes_recognized'] == current_attribute_count +
+                    current_dir_attribute_count):
                 stats['entities_recognized_success'] += 1
             elif stats['attributes_recognized'] == current_attribute_count:
                 stats['entities_recognized_failure'] += 1
@@ -150,9 +150,9 @@ def _convert_plugin(d: config_pb2.Directive, plugin: str, stats: dict) -> dict:
 
 
 def _convert_in_tail(d: config_pb2.Directive, stats: dict) -> dict:
-    """Returns dict of mapped fields and values for intail plugin.
+    """Returns dict of mapped fields and values for in_tail plugin.
 
-    Parses a directive of in-tail plugin, cases on fields, and
+    Parses a directive of in_tail plugin, cases on fields, and
     returns a new dict of mapped fields and their values.
 
     Args:
@@ -213,8 +213,8 @@ def _convert_in_tail(d: config_pb2.Directive, stats: dict) -> dict:
                     stats['attributes_unrecognized'] += 1
             current_dir_attribute_count: int =\
                 _get_aggregated_num_attributes(nd)
-            if stats['attributes_recognized'] == current_attribute_count +\
-                    current_dir_attribute_count:
+            if (stats['attributes_recognized'] == current_attribute_count +
+                    current_dir_attribute_count):
                 stats['entities_recognized_success'] += 1
             elif stats['attributes_recognized'] == current_attribute_count:
                 stats['entities_recognized_failure'] += 1
