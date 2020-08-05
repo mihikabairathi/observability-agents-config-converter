@@ -2,7 +2,8 @@
 
 Usage: To run just this file:
     python3 -m config_converter.config_mapper.config_mapper
-    <master path> <file name> <log level> <log filepath> <config json>
+    <master path> <file name> <unified agent log level>
+    <unified agent log dirpath> <config json>
 Where:
     master path: directory to store master agent config file in
     file name: what you want to name the master agent file
@@ -270,10 +271,11 @@ def write_to_yaml(result: dict, path: str, name: str) -> None:
 
 if __name__ == '__main__':
     master_path, file_name, config_json = sys.argv[1], sys.argv[2], sys.argv[5]
-    log_level, log_filepath = sys.argv[3], sys.argv[4]
+    agent_log_level, agent_log_dirpath = sys.argv[3], sys.argv[4]
     (yaml_dict, stats_output) = extract_root_dirs(
         json_format.Parse(config_json, config_pb2.Directive()))
-    yaml_dict['logging_level'] = yaml_dict.get('logging_level', log_level)
-    yaml_dict['log_file_path'] = log_filepath
+    yaml_dict['logging_level'] = yaml_dict.get('logging_level',
+                                               agent_log_level)
+    yaml_dict['log_file_path'] = agent_log_dirpath
     write_to_yaml(yaml_dict, master_path, file_name)
     print(json.dumps(stats_output, indent=2))
