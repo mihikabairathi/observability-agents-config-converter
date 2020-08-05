@@ -2,8 +2,9 @@
 Program that converts a fluentd config file to a master agent config file.
 
 Usage:
-    python3 -m config_script [--help] [--unified_agent_log_level level]
-    [--unified_agent_log_dirpath path] <fluentd path> <master path>
+    python3 -m config_script [--help] [--log_level] [--log_filepath]
+    [--unified_agent_log_level level] [--unified_agent_log_dirpath path]
+    <fluentd path> <master path>
 Where:
     master path: directory to store master agent config file in
     fluentd path: path to the fluentd config file
@@ -78,6 +79,17 @@ def create_parser() -> argparse.ArgumentParser:
                         metavar='path',
                         default='/var/log/ops_agent/ops_agent.log',
                         help='default: /var/log/ops_agent/ops_agent.log')
+    parser.add_argument(
+        '--log_level',
+        default='debug',
+        metavar='level',
+        choices=['info', 'critical', 'error', 'warn', 'debug'],
+        help='default: debug, other options: critical,error,warn,info')
+    parser.add_argument(
+        '--log_filepath',
+        metavar='path',
+        default='/tmp/log/config_migration/config_migration.log',
+        help='default: /tmp/log/config_migration/config_migration.log')
     return parser
 
 
@@ -88,8 +100,8 @@ if __name__ == '__main__':
     file_name: str = os.path.splitext(os.path.basename(args.config_path))[0]
     get_object([args.config_path, args.master_dir])
     convert_object([
-        args.master_dir, file_name, args.unified_agent_log_level,
-        args.unified_agent_log_dirpath
+        args.master_dir, file_name, args.log_level, args.log_filepath,
+        args.unified_agent_log_level, args.unified_agent_log_dirpath
     ])
     subprocess.run(['rm', os.path.join(args.master_dir, 'config.json')],
                    check=True)

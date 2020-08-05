@@ -18,7 +18,7 @@ def read_file(path):
 
 def check_stats(output_str, expected_stats):
     """Checks stats printed out are correct."""
-    output_stats = output_str[output_str.index('{'):]
+    output_stats = output_str.strip()
     assert json.loads(output_stats) == expected_stats
 
 
