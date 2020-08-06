@@ -55,7 +55,9 @@ def test_no_in_tail(capfd):
         'entities_unrecognized': 1,
         'entities_recognized_success': 0,
         'entities_recognized_partial': 0,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 1,
+        'error_logs': 1
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -72,7 +74,9 @@ def test_in_tail_deprecated(capfd):
         'entities_unrecognized': 0,
         'entities_recognized_success': 0,
         'entities_recognized_partial': 1,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 2,
+        'error_logs': 0
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -89,7 +93,9 @@ def test_in_tail_normal(capfd):
         'entities_unrecognized': 0,
         'entities_recognized_success': 2,
         'entities_recognized_partial': 0,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 1,
+        'error_logs': 0
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -106,7 +112,9 @@ def test_in_tail_unknown(capfd):
         'entities_unrecognized': 0,
         'entities_recognized_success': 1,
         'entities_recognized_partial': 1,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 1,
+        'error_logs': 1
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -123,7 +131,9 @@ def test_in_tail_double(capfd):
         'entities_unrecognized': 0,
         'entities_recognized_success': 4,
         'entities_recognized_partial': 0,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 0,
+        'error_logs': 0
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -140,7 +150,9 @@ def test_in_tail_include(capfd):
         'entities_unrecognized': 0,
         'entities_recognized_success': 2,
         'entities_recognized_partial': 2,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 3,
+        'error_logs': 1
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -157,7 +169,9 @@ def test_in_syslog_endpoint(capfd):
         'entities_unrecognized': 2,
         'entities_recognized_success': 0,
         'entities_recognized_partial': 0,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 0,
+        'error_logs': 2
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -174,7 +188,9 @@ def test_in_tail_rabbitmq(capfd):
         'entities_unrecognized': 0,
         'entities_recognized_success': 0,
         'entities_recognized_partial': 4,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 4,
+        'error_logs': 0
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -191,7 +207,9 @@ def test_in_tail_chef(capfd):
         'entities_unrecognized': 0,
         'entities_recognized_success': 0,
         'entities_recognized_partial': 12,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 12,
+        'error_logs': 0
     }
     check_stats(capfd.readouterr().out, expected_stats)
 
@@ -219,6 +237,8 @@ def test_in_tail_cli(capfd):
         'entities_unrecognized': 0,
         'entities_recognized_success': 0,
         'entities_recognized_partial': 1,
-        'entities_recognized_failure': 0
+        'entities_recognized_failure': 0,
+        'warning_logs': 13,
+        'error_logs': 0
     }
     check_stats(capfd.readouterr().out, expected_stats)
