@@ -81,10 +81,10 @@ def create_parser() -> argparse.ArgumentParser:
                         help='default: /var/log/ops_agent/ops_agent.log')
     parser.add_argument(
         '--log_level',
-        default='debug',
+        default='info',
         metavar='level',
         choices=['info', 'critical', 'error', 'warn', 'debug'],
-        help='default: debug, other options: critical,error,warn,info')
+        help='default: info, other options: critical,error,warn,debug')
     parser.add_argument(
         '--log_filepath',
         metavar='path',
