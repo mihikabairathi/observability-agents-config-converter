@@ -2,17 +2,21 @@
 
 Usage: To run just this file:
     python3 -m config_converter.config_mapper.config_mapper
-    <master path> <file name> <log level> <log filepath> <config json>
+    <master agent path> <file name> <log level> <log filepath>
+    <unified agent log level> <unified agent log dirpath> <config json>
 Where:
-    master path: directory to store master agent config file in
+    master agent path: directory to store master agent config file in
     file name: what you want to name the master agent file
     config json: string of fluentd config parsed into a json format
 To do:
-    1. Generate logs, update stats dict with log fields, test it
+    1. Update stats dict with log fields
 """
 
 import json
+import logging
+import os
 import sys
+from pathlib import Path
 import yaml
 from google.protobuf import json_format
 from config_converter.config_mapper import config_pb2
@@ -76,19 +80,21 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> tuple:
         if d.name not in plugin_prefix_map:
             stats['entities_skipped'] += 1
             stats['attributes_skipped'] += _get_aggregated_num_attributes(d)
-            print(f'Currently we do not support plugins of {d.name}')
+            logging.warning(
+                'Skip mapping %s due to missing functionality in master agent',
+                d.name)
             continue
         try:
             plugin_type = next(p.value for p in d.params if p.name == '@type')
         except StopIteration:
-            print('Invalid configuration - missing @type param')
+            logging.error('Invalid configuration - missing @type param')
             sys.exit()
         plugin_name = plugin_prefix_map[d.name] + plugin_type
         if plugin_name not in _SUPPORTED_PLUGINS:
             stats['entities_unrecognized'] += 1
             stats['attributes_unrecognized'] += _get_aggregated_num_attributes(
                 d)
-            print(f'We do not know plugin {plugin_name}')
+            logging.error('We do not know plugin %s', plugin_name)
         else:
             plugin_dir = dir_name_map[d.name]
             if plugin_dir not in logs_module:
@@ -140,7 +146,7 @@ def _convert_plugin(d: config_pb2.Directive, plugin: str, stats: dict) -> dict:
     try:
         result['name'] = next(p.value for p in d.params if p.name == 'tag')
     except StopIteration:
-        print('Invalid configuration - missing tag')
+        logging.error('Invalid configuration - missing tag')
         sys.exit()
     stats['attributes_recognized'] += 2
     if plugin == 'in_tail':
@@ -198,10 +204,12 @@ def _convert_in_tail(d: config_pb2.Directive, stats: dict) -> dict:
             stats['attributes_recognized'] += 1
         elif p.name in _UNSUPPORTED_FIELDS:
             stats['attributes_skipped'] += 1
-            print(f'{p.name} cannot be mapped into master agent config file.')
+            logging.warning(
+                'Skip mapping %s due to missing functionality in master agent',
+                p.name)
         else:
             stats['attributes_unrecognized'] += 1
-            print(f'{p.name} is an unknown field.')
+            logging.error('%s is an unknown field', p.name)
     for nd in d.directives:
         if nd.name == 'parse':
             current_attribute_count = stats['attributes_recognized']
@@ -222,12 +230,12 @@ def _convert_in_tail(d: config_pb2.Directive, stats: dict) -> dict:
                 stats['entities_recognized_partial'] += 1
         else:
             stats['entities_unrecognized'] += 1
-            print(f'{nd.name} is an unknown directive.')
+            logging.error('%s is an unknown directive', nd.name)
     return fields
 
 
 def _convert_parse_dir(specific: dict, p: config_pb2.Param) -> None:
-    """Create parser dir in master config."""
+    """Create parser dir in master agent config."""
     parser_type_map = {
         'multiline': 'multiline',
         'regex': 'regex',
@@ -245,7 +253,7 @@ def _convert_parse_dir(specific: dict, p: config_pb2.Param) -> None:
         specific['parser']['regex_parser_config'][p.name] = p.value
     elif p.name == 'format' or p.name == '@type':
         if p.value not in parser_type_map:
-            print(f'unknown parser format type {p.value}')
+            logging.error('Unknown parser format type %s', p.value)
         else:
             specific['parser']['type'] = parser_type_map[p.value]
     else:
@@ -268,12 +276,25 @@ def write_to_yaml(result: dict, path: str, name: str) -> None:
         yaml.dump(result, f)
 
 
+def initialize_logger(level: str, path: str) -> None:
+    """Sets up logger with level and filepath."""
+    numeric_level = getattr(logging, level.upper(), None)
+    log_directory = os.path.dirname(path)
+    if not os.path.isdir(log_directory):
+        os.makedirs(log_directory)
+    Path(path).touch(exist_ok=True)
+    logging.basicConfig(filename=path, level=numeric_level)
+
+
 if __name__ == '__main__':
-    master_path, file_name, config_json = sys.argv[1], sys.argv[2], sys.argv[5]
-    log_level, log_filepath = sys.argv[3], sys.argv[4]
+    agent_path, file_name, log_level = sys.argv[1], sys.argv[2], sys.argv[3]
+    log_filepath, agent_log_level = sys.argv[4], sys.argv[5]
+    agent_log_dirpath, config_json = sys.argv[6], sys.argv[7]
+    initialize_logger(log_level, log_filepath)
     (yaml_dict, stats_output) = extract_root_dirs(
         json_format.Parse(config_json, config_pb2.Directive()))
-    yaml_dict['logging_level'] = yaml_dict.get('logging_level', log_level)
-    yaml_dict['log_file_path'] = log_filepath
-    write_to_yaml(yaml_dict, master_path, file_name)
+    yaml_dict['logging_level'] = yaml_dict.get('logging_level',
+                                               agent_log_level)
+    yaml_dict['log_file_path'] = agent_log_dirpath
+    write_to_yaml(yaml_dict, agent_path, file_name)
     print(json.dumps(stats_output, indent=2))

@@ -18,7 +18,7 @@ def read_file(path):
 
 def check_stats(output_str, expected_stats):
     """Checks stats printed out are correct."""
-    output_stats = output_str[output_str.index('{'):]
+    output_stats = output_str.strip()
     assert json.loads(output_stats) == expected_stats
 
 
@@ -200,8 +200,10 @@ def test_in_tail_cli(capfd):
     config_name = 'in_tail_cli'
     with tempfile.TemporaryDirectory() as tmpdirname:
         subprocess.run([
-            'python3', '-B', '-m', 'config_script', '--log_level=error',
-            '--log_filepath=/tmp', f'test/data/{config_name}.conf', tmpdirname
+            'python3', '-B', '-m', 'config_script',
+            '--unified_agent_log_level=error',
+            '--unified_agent_log_dirpath=/tmp',
+            f'test/data/{config_name}.conf', tmpdirname
         ],
                        check=True)
         expected = read_file(f'test/data/{config_name}.yaml')
