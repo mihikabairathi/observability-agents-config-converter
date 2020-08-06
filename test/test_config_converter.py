@@ -201,8 +201,8 @@ def test_in_tail_cli(capfd):
     with tempfile.TemporaryDirectory() as tmpdirname:
         subprocess.run([
             'python3', '-B', '-m', 'config_script',
-            '--unified_agent_log_level=error',
-            '--unified_agent_log_dirpath=/tmp',
+            '--master_agent_log_level=error',
+            '--master_agent_log_dirpath=/tmp',
             f'test/data/{config_name}.conf', tmpdirname
         ],
                        check=True)

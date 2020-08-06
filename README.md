@@ -31,6 +31,6 @@ $ gem install config_parser-0.0.0.gem
 
 ```
 $ python3 -m config_script [-h] [--log_level] [--log_filepath]
-  [--unified_agent_log_level level] [--unified_agent_log_dirpath path]
+  [--master_agent_log_level level] [--master_agent_log_dirpath path]
   path/to/config/file path/to/output/directory
 ```
