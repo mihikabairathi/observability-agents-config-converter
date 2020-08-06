@@ -81,8 +81,8 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> tuple:
             stats['entities_skipped'] += 1
             stats['attributes_skipped'] += _get_aggregated_num_attributes(d)
             logging.warning(
-                'Skipping mapping %s into master agent config file as its %s',
-                d.name, 'functionality isn\'t supported by the master agent')
+                'Skip mapping %s due to missing functionality in master agent',
+                d.name)
             continue
         try:
             plugin_type = next(p.value for p in d.params if p.name == '@type')
@@ -205,8 +205,8 @@ def _convert_in_tail(d: config_pb2.Directive, stats: dict) -> dict:
         elif p.name in _UNSUPPORTED_FIELDS:
             stats['attributes_skipped'] += 1
             logging.warning(
-                'Skipping mapping %s into master agent config file as its %s',
-                p.name, 'functionality isn\'t supported by the master agent')
+                'Skip mapping %s due to missing functionality in master agent',
+                p.name)
         else:
             stats['attributes_unrecognized'] += 1
             logging.error('%s is an unknown field', p.name)
