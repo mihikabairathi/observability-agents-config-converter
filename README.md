@@ -21,7 +21,9 @@ users can will use the migration tool.
 
 This flowchart demonstrates the flow of the program - from initial input to final output
 
-![Image of implementation](https://drive.google.com/thumbnail?id=1FtwLUfmytvJdzkXbWcG7wuPuwDK9XBfN)
+<p align="center">
+  <img src="https://drive.google.com/thumbnail?id=1FtwLUfmytvJdzkXbWcG7wuPuwDK9XBfN" alt="Implementation Flowchart" width="200" height="200"/>
+</p>
 
 Here is a document which explains the reasoning behind developing a schema to transfer
 data between the two programs as shown above:
