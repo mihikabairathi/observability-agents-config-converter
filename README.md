@@ -22,7 +22,7 @@ users can will use the migration tool.
 This flowchart demonstrates the flow of the program - from initial input to final output
 
 <p align="center">
-  <img src="https://drive.google.com/thumbnail?id=1FtwLUfmytvJdzkXbWcG7wuPuwDK9XBfN" alt="Implementation Flowchart" width="200" height="200"/>
+  <img src="https://drive.google.com/thumbnail?id=1FtwLUfmytvJdzkXbWcG7wuPuwDK9XBfN" alt="Implementation Flowchart" width="400" height="400"/>
 </p>
 
 Here is a document which explains the reasoning behind developing a schema to transfer
