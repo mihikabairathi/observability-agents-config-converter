@@ -17,6 +17,19 @@ Developing this tool will increase the confidence of migrating configurations
 to new agents, and reduce the friction to adopt the new agents, since
 users can will use the migration tool.
 
+## Implementation
+
+This flowchart demonstrates the flow of the program - from initial input to final output
+
+<p align="center">
+  <img src="https://drive.google.com/thumbnail?id=1FtwLUfmytvJdzkXbWcG7wuPuwDK9XBfN" alt="Implementation Flowchart" width="350" height="350"/>
+</p>
+
+Here is a document which explains the reasoning behind developing a schema to transfer
+data between the two programs as shown above:
+
+https://docs.google.com/document/d/1GDkzjwg-SaVl9VuvmwF0O8cV8SEZGkZmbuV2PfLR3IU/edit?usp=sharing
+
 ## Installation Instructions
 
 Run these commands in the config_converter/config_parser/ directory
