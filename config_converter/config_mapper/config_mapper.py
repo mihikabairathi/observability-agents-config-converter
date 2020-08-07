@@ -81,32 +81,33 @@ def extract_root_dirs(config_obj: config_pb2.Directive) -> tuple:
             stats['entities_skipped'] += 1
             stats['attributes_skipped'] += _get_aggregated_num_attributes(
                 directive)
-            stats['warning_logs'] += 1
             logging.warning(
                 'Skip mapping %s due to missing functionality in master agent',
                 directive.name)
+            stats['warning_logs'] += 1
             continue
         try:
             plugin_type = next(param.value for param in directive.params
                                if param.name == '@type')
         except StopIteration:
-            stats['error_logs'] += 1
             logging.error('Invalid configuration - missing @type param')
+            stats['error_logs'] += 1
             sys.exit()
         plugin_name = plugin_prefix_map[directive.name] + plugin_type
         if plugin_name not in _SUPPORTED_PLUGINS:
             stats['entities_unrecognized'] += 1
             stats['attributes_unrecognized'] += _get_aggregated_num_attributes(
                 directive)
-            stats['error_logs'] += 1
             logging.error('We do not know plugin %s', plugin_name)
+            stats['error_logs'] += 1
         else:
             plugin_dir = dir_name_map[directive.name]
             if plugin_dir not in logs_module:
                 logs_module[plugin_dir] = []
             current_attribute_count = stats['attributes_recognized']
+            # stats are updated after converting plugin
             logs_module[plugin_dir].append(
-                _convert_plugin(directive, plugin_name, stats))  # update stats
+                _convert_plugin(directive, plugin_name, stats))
             current_dir_attribute_count: int = _get_aggregated_num_attributes(
                 directive)
             if (stats['attributes_recognized'] == current_attribute_count +
@@ -155,8 +156,8 @@ def _convert_plugin(directive: config_pb2.Directive, plugin: str,
         result['name'] = next(param.value for param in directive.params
                               if param.name == 'tag')
     except StopIteration:
-        stats['error_logs'] += 1
         logging.error('Invalid configuration - missing tag')
+        stats['error_logs'] += 1
         sys.exit()
     stats['attributes_recognized'] += 2
     if plugin == 'in_tail':
@@ -214,14 +215,14 @@ def _convert_in_tail(directive: config_pb2.Directive, stats: dict) -> dict:
             stats['attributes_recognized'] += 1
         elif param.name in _UNSUPPORTED_FIELDS:
             stats['attributes_skipped'] += 1
-            stats['warning_logs'] += 1
             logging.warning(
                 'Skip mapping %s due to missing functionality in master agent',
                 param.name)
+            stats['warning_logs'] += 1
         else:
             stats['attributes_unrecognized'] += 1
-            stats['error_logs'] += 1
             logging.error('%s is an unknown field', param.name)
+            stats['error_logs'] += 1
     for nested_directive in directive.directives:
         if nested_directive.name == 'parse':
             current_attribute_count = stats['attributes_recognized']
@@ -243,8 +244,8 @@ def _convert_in_tail(directive: config_pb2.Directive, stats: dict) -> dict:
                 stats['entities_recognized_partial'] += 1
         else:
             stats['entities_unrecognized'] += 1
-            stats['error_logs'] += 1
             logging.error('%s is an unknown directive', nested_directive.name)
+            stats['error_logs'] += 1
     return fields
 
 
